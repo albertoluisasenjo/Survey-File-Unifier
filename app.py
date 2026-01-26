@@ -3,16 +3,32 @@
 SURVEY FILE UNIFIER - VERSIÓN WEB
 ===============================================================================
 Aplicación web para unificar archivos de encuestas SPSS (.sav)
+
+Funcionalidades:
+1. Upload de múltiples archivos SPSS
+2. Detección automática de multirespuesta
+3. Mapeo manual de variables (con sugerencias)
+4. Unificación y descarga
 """
 
 import streamlit as st
 import pandas as pd
-import pyreadstat
-from pathlib import Path
-import tempfile
-from io import BytesIO
-from typing import List, Dict, Tuple
-import re
+from typing import List
+import json
+
+# Importar módulos propios
+from utils.file_handler import load_spss_file, export_to_spss
+from utils.multiresponse import (
+    detect_multiresponse_variables,
+    apply_multiresponse_transformations
+)
+from utils.variable_mapping import (
+    create_variable_inventory,
+    suggest_variable_mappings,
+    create_mapping_dataframe,
+    apply_variable_mapping,
+    get_mapping_stats
+)
 
 # ============================================================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -26,316 +42,514 @@ st.set_page_config(
 )
 
 # ============================================================================
+# INICIALIZACIÓN DE SESSION STATE
+# ============================================================================
+
+if 'current_step' not in st.session_state:
+    st.session_state.current_step = 1
+
+if 'files_data' not in st.session_state:
+    st.session_state.files_data = []
+
+if 'multiresponse_transformations' not in st.session_state:
+    st.session_state.multiresponse_transformations = {}
+
+if 'variable_inventory' not in st.session_state:
+    st.session_state.variable_inventory = {}
+
+if 'mapping_df' not in st.session_state:
+    st.session_state.mapping_df = None
+
+if 'unified_df' not in st.session_state:
+    st.session_state.unified_df = None
+
+# ============================================================================
 # FUNCIONES AUXILIARES
 # ============================================================================
 
-def load_spss_file(uploaded_file) -> Tuple[pd.DataFrame, dict]:
-    """
-    Carga un archivo SPSS desde un objeto UploadedFile
-    
-    Returns:
-        Tuple con (DataFrame, metadata)
-    """
-    try:
-        # Crear archivo temporal
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.sav') as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_path = tmp_file.name
-        
-        # Leer con pyreadstat
-        df, meta = pyreadstat.read_sav(tmp_path)
-        
-        # Limpiar archivo temporal
-        Path(tmp_path).unlink()
-        
-        return df, meta
-    
-    except Exception as e:
-        st.error(f"Error al cargar {uploaded_file.name}: {str(e)}")
-        return None, None
-
-
-def get_all_columns_from_files(files_data: List[Tuple[str, pd.DataFrame, dict]]) -> List[str]:
-    """
-    Obtiene todas las columnas únicas de todos los archivos
-    
-    Args:
-        files_data: Lista de tuplas (nombre_archivo, dataframe, metadata)
-    
-    Returns:
-        Lista ordenada de columnas únicas
-    """
-    all_columns = set()
-    
-    for name, df, meta in files_data:
-        all_columns.update(df.columns.tolist())
-    
-    return sorted(list(all_columns))
-
-
-def unify_datasets(files_data: List[Tuple[str, pd.DataFrame, dict]], 
-                   add_source_column: bool = True) -> pd.DataFrame:
-    """
-    Unifica múltiples datasets en uno solo
-    
-    Args:
-        files_data: Lista de tuplas (nombre_archivo, dataframe, metadata)
-        add_source_column: Si True, añade columna 'dataset_origen'
-    
-    Returns:
-        DataFrame unificado
-    """
-    unified_dfs = []
-    
-    for file_name, df, meta in files_data:
-        # Crear copia
-        df_copy = df.copy()
-        
-        # Añadir columna de origen si se solicita
-        if add_source_column:
-            df_copy['dataset_origen'] = file_name
-        
-        unified_dfs.append(df_copy)
-    
-    # Concatenar todos los dataframes
-    # outer join = mantiene todas las columnas de todos los archivos
-    result = pd.concat(unified_dfs, axis=0, ignore_index=True, sort=False)
-    
-    return result
-
-
-def generate_column_report(files_data: List[Tuple[str, pd.DataFrame, dict]]) -> pd.DataFrame:
-    """
-    Genera un reporte de qué columnas aparecen en qué archivos
-    
-    Returns:
-        DataFrame con columnas: variable, label, archivo_1, archivo_2, ...
-    """
-    all_columns = get_all_columns_from_files(files_data)
-    
-    report_data = []
-    
-    for col in all_columns:
-        row = {'variable': col}
-        
-        # Obtener label del primer archivo donde aparece
-        label = None
-        for name, df, meta in files_data:
-            if col in df.columns and meta.column_names_to_labels:
-                label = meta.column_names_to_labels.get(col, '')
-                if label:
-                    break
-        
-        row['label'] = label if label else ''
-        
-        # Marcar en qué archivos aparece
-        for name, df, meta in files_data:
-            if col in df.columns:
-                row[name] = '✓'
-            else:
-                row[name] = ''
-        
-        report_data.append(row)
-    
-    return pd.DataFrame(report_data)
-
-
-def export_to_spss(df: pd.DataFrame) -> BytesIO:
-    """
-    Exporta un DataFrame a formato SPSS (.sav) en memoria
-    
-    Returns:
-        BytesIO con el archivo .sav
-    """
-    output = BytesIO()
-    
-    # Escribir a archivo temporal primero
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.sav') as tmp_file:
-        tmp_path = tmp_file.name
-    
-    try:
-        # Escribir con pyreadstat
-        pyreadstat.write_sav(df, tmp_path)
-        
-        # Leer a BytesIO
-        with open(tmp_path, 'rb') as f:
-            output.write(f.read())
-        
-        output.seek(0)
-        
-    finally:
-        # Limpiar archivo temporal
-        Path(tmp_path).unlink(missing_ok=True)
-    
-    return output
-
+def reset_from_step(step: int):
+    """Reinicia el proceso desde un paso específico"""
+    if step <= 1:
+        st.session_state.files_data = []
+        st.session_state.multiresponse_transformations = {}
+        st.session_state.variable_inventory = {}
+        st.session_state.mapping_df = None
+        st.session_state.unified_df = None
+    elif step <= 2:
+        st.session_state.multiresponse_transformations = {}
+        st.session_state.variable_inventory = {}
+        st.session_state.mapping_df = None
+        st.session_state.unified_df = None
+    elif step <= 3:
+        st.session_state.variable_inventory = {}
+        st.session_state.mapping_df = None
+        st.session_state.unified_df = None
+    elif step <= 4:
+        st.session_state.unified_df = None
 
 # ============================================================================
-# INTERFAZ PRINCIPAL
+# SIDEBAR - NAVEGACIÓN
 # ============================================================================
 
-def main():
-    # Header
+with st.sidebar:
     st.title("📊 Survey File Unifier")
-    st.markdown("**Unifica múltiples archivos de encuestas SPSS en un único dataset**")
     st.markdown("---")
     
-    # Sidebar - Configuración
-    with st.sidebar:
-        st.header("⚙️ Configuración")
-        
-        add_source = st.checkbox(
-            "Añadir columna 'dataset_origen'",
-            value=True,
-            help="Añade una columna indicando de qué archivo proviene cada registro"
-        )
-        
-        st.markdown("---")
-        st.markdown("### 📝 Instrucciones")
-        st.markdown("""
-        1. Sube tus archivos SPSS (.sav)
-        2. Revisa el resumen de archivos
-        3. Descarga el archivo unificado
-        
-        **Nota:** El archivo unificado contendrá:
-        - Todas las filas de todos los archivos
-        - Todas las columnas que aparezcan en cualquier archivo
-        - NaN donde una columna no existía en un archivo
-        """)
+    st.subheader("Progreso del proceso")
     
-    # Área principal - Upload
-    st.header("1️⃣ Sube tus archivos")
+    steps = {
+        1: "📁 Cargar archivos",
+        2: "🔍 Detectar multirespuesta",
+        3: "🗂️ Mapear variables",
+        4: "💾 Descargar resultado"
+    }
+    
+    for step_num, step_name in steps.items():
+        if step_num < st.session_state.current_step:
+            st.success(f"✓ {step_name}")
+        elif step_num == st.session_state.current_step:
+            st.info(f"→ {step_name}")
+        else:
+            st.text(f"  {step_name}")
+    
+    st.markdown("---")
+    
+    # Botón de reinicio
+    if st.button("🔄 Reiniciar proceso", type="secondary"):
+        reset_from_step(1)
+        st.session_state.current_step = 1
+        st.rerun()
+    
+    # Información
+    st.markdown("---")
+    st.caption("**Survey File Unifier** v1.0")
+    st.caption("Desarrollado para análisis de encuestas")
+
+# ============================================================================
+# PASO 1: CARGAR ARCHIVOS
+# ============================================================================
+
+if st.session_state.current_step == 1:
+    st.title("Paso 1: Cargar archivos SPSS")
+    st.markdown("Sube los archivos de encuestas que deseas unificar")
     
     uploaded_files = st.file_uploader(
         "Selecciona archivos SPSS (.sav)",
         type=['sav'],
         accept_multiple_files=True,
-        help="Puedes seleccionar múltiples archivos a la vez"
+        key="file_uploader"
     )
     
-    if not uploaded_files:
-        st.info("👆 Sube al menos un archivo para comenzar")
-        return
+    if uploaded_files:
+        if st.button("Procesar archivos", type="primary"):
+            with st.spinner("Cargando archivos..."):
+                files_data = []
+                errors = []
+                
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for idx, uploaded_file in enumerate(uploaded_files):
+                    try:
+                        status_text.text(f"Procesando: {uploaded_file.name}")
+                        df, metadata = load_spss_file(uploaded_file)
+                        files_data.append((uploaded_file.name, df, metadata))
+                        
+                    except Exception as e:
+                        errors.append(f"{uploaded_file.name}: {str(e)}")
+                    
+                    progress_bar.progress((idx + 1) / len(uploaded_files))
+                
+                status_text.empty()
+                progress_bar.empty()
+                
+                if files_data:
+                    st.session_state.files_data = files_data
+                    st.success(f"✅ {len(files_data)} archivos cargados correctamente")
+                    
+                    # Mostrar resumen
+                    summary_data = []
+                    for name, df, meta in files_data:
+                        summary_data.append({
+                            'Archivo': name,
+                            'Filas': len(df),
+                            'Columnas': len(df.columns)
+                        })
+                    
+                    st.dataframe(pd.DataFrame(summary_data), use_container_width=True)
+                    
+                    if errors:
+                        with st.expander("⚠️ Errores encontrados"):
+                            for error in errors:
+                                st.error(error)
+                    
+                    if st.button("Continuar al siguiente paso →", type="primary"):
+                        st.session_state.current_step = 2
+                        st.rerun()
+                else:
+                    st.error("❌ No se pudo cargar ningún archivo")
     
-    # Procesar archivos
-    st.header("2️⃣ Procesando archivos...")
+    elif st.session_state.files_data:
+        st.info("Ya tienes archivos cargados. Puedes continuar al siguiente paso.")
+        if st.button("Continuar al siguiente paso →", type="primary"):
+            st.session_state.current_step = 2
+            st.rerun()
+
+# ============================================================================
+# PASO 2: DETECTAR MULTIRESPUESTA
+# ============================================================================
+
+elif st.session_state.current_step == 2:
+    st.title("Paso 2: Detección de multirespuesta")
+    st.markdown("Detectaremos automáticamente variables multirespuesta en tus archivos")
     
-    with st.spinner("Cargando archivos SPSS..."):
-        files_data = []
+    if not st.session_state.files_data:
+        st.error("No hay archivos cargados. Vuelve al paso 1.")
+        if st.button("← Volver al paso 1"):
+            st.session_state.current_step = 1
+            st.rerun()
+    else:
+        st.info(f"📁 Archivos cargados: {len(st.session_state.files_data)}")
         
-        for uploaded_file in uploaded_files:
-            df, meta = load_spss_file(uploaded_file)
-            
-            if df is not None:
-                files_data.append((uploaded_file.name, df, meta))
-    
-    if not files_data:
-        st.error("❌ No se pudo cargar ningún archivo correctamente")
-        return
-    
-    # Mostrar resumen
-    st.success(f"✅ {len(files_data)} archivos cargados correctamente")
-    
-    # Tabs para diferentes vistas
-    tab1, tab2, tab3 = st.tabs(["📊 Resumen", "📋 Reporte de Columnas", "💾 Descargar"])
-    
-    with tab1:
-        st.subheader("Resumen de archivos")
-        
-        # Tabla resumen
-        summary_data = []
-        for name, df, meta in files_data:
-            summary_data.append({
-                'Archivo': name,
-                'Filas': len(df),
-                'Columnas': len(df.columns)
-            })
-        
-        summary_df = pd.DataFrame(summary_data)
-        st.dataframe(summary_df, use_container_width=True)
-        
-        # Estadísticas globales
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            total_rows = sum(row['Filas'] for row in summary_data)
-            st.metric("Total de filas", f"{total_rows:,}")
+            if st.button("🔍 Detectar multirespuesta", type="primary"):
+                with st.spinner("Detectando variables multirespuesta..."):
+                    all_transformations = {}
+                    processed_files_data = []
+                    
+                    for file_name, df, metadata in st.session_state.files_data:
+                        st.text(f"Procesando: {file_name}")
+                        
+                        # Detectar grupos
+                        groups = detect_multiresponse_variables(df, metadata)
+                        
+                        if groups:
+                            # Aplicar transformaciones
+                            df_transformed, transformations = apply_multiresponse_transformations(
+                                df, metadata, groups
+                            )
+                            all_transformations[file_name] = transformations
+                            processed_files_data.append((file_name, df_transformed, metadata))
+                            
+                            st.success(f"✓ {file_name}: {len(groups)} grupos detectados")
+                        else:
+                            # No hay multirespuesta, mantener original
+                            processed_files_data.append((file_name, df, metadata))
+                            st.info(f"ℹ️ {file_name}: Sin multirespuesta")
+                    
+                    # Guardar resultados
+                    st.session_state.files_data = processed_files_data
+                    st.session_state.multiresponse_transformations = all_transformations
+                    
+                    total_groups = sum(len(t) for t in all_transformations.values())
+                    st.success(f"✅ Total: {total_groups} grupos de multirespuesta transformados")
         
         with col2:
-            all_cols = get_all_columns_from_files(files_data)
-            st.metric("Columnas únicas", len(all_cols))
+            if st.button("⏭️ Saltar este paso"):
+                st.session_state.multiresponse_transformations = {}
+                st.info("Sin transformaciones de multirespuesta")
         
-        with col3:
-            st.metric("Archivos procesados", len(files_data))
+        # Mostrar resultados si ya se detectaron
+        if st.session_state.multiresponse_transformations:
+            st.markdown("---")
+            st.subheader("Transformaciones realizadas")
+            
+            for file_name, transformations in st.session_state.multiresponse_transformations.items():
+                with st.expander(f"📄 {file_name} ({len(transformations)} grupos)"):
+                    for idx, trans in enumerate(transformations, 1):
+                        st.markdown(f"**Grupo {idx}: {trans['column_name']}**")
+                        st.caption(f"Variables originales: {len(trans['original_columns'])}")
+                        
+                        # Mostrar mapeo de valores
+                        mapping_df = pd.DataFrame([
+                            {'Variable original': var, 'Valor en lista': val}
+                            for var, val in trans['value_mappings'].items()
+                        ])
+                        st.dataframe(mapping_df, use_container_width=True)
+        
+        # Botón para continuar
+        st.markdown("---")
+        if st.button("Continuar al siguiente paso →", type="primary"):
+            st.session_state.current_step = 3
+            st.rerun()
+        
+        if st.button("← Volver al paso anterior"):
+            st.session_state.current_step = 1
+            st.rerun()
+
+# ============================================================================
+# PASO 3: MAPEAR VARIABLES
+# ============================================================================
+
+elif st.session_state.current_step == 3:
+    st.title("Paso 3: Mapeo de variables")
+    st.markdown("Unifica variables similares entre diferentes archivos")
     
-    with tab2:
-        st.subheader("Reporte de columnas")
-        st.markdown("Muestra qué columnas aparecen en cada archivo")
+    if not st.session_state.files_data:
+        st.error("No hay archivos cargados. Vuelve al paso 1.")
+        if st.button("← Volver al paso 1"):
+            st.session_state.current_step = 1
+            st.rerun()
+    else:
+        # Crear inventario si no existe
+        if not st.session_state.variable_inventory:
+            with st.spinner("Creando inventario de variables..."):
+                inventory = create_variable_inventory(st.session_state.files_data)
+                st.session_state.variable_inventory = inventory
+                
+                # Crear sugerencias
+                suggestions = suggest_variable_mappings(inventory)
+                
+                # Crear DataFrame de mapeo
+                mapping_df = create_mapping_dataframe(inventory, suggestions)
+                st.session_state.mapping_df = mapping_df
         
-        with st.spinner("Generando reporte..."):
-            report_df = generate_column_report(files_data)
+        # Mostrar estadísticas
+        stats = get_mapping_stats(st.session_state.mapping_df)
         
-        st.dataframe(report_df, use_container_width=True, height=400)
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Variables totales", stats['total_variables'])
+        col2.metric("Variables únicas", stats['variables_unificadas'])
+        col3.metric("Variables agrupadas", stats['variables_agrupadas'])
+        col4.metric("Sin cambios", stats['variables_sin_cambios'])
         
-        # Botón para descargar reporte
-        csv_report = report_df.to_csv(index=False, encoding='utf-8-sig')
-        st.download_button(
-            label="📥 Descargar reporte (CSV)",
-            data=csv_report,
-            file_name="reporte_columnas.csv",
-            mime="text/csv"
-        )
+        st.markdown("---")
+        
+        # Tabs para diferentes vistas
+        tab1, tab2 = st.tabs(["📝 Editar mapeo", "📊 Vista previa"])
+        
+        with tab1:
+            st.subheader("Editar mapeo de variables")
+            st.markdown("""
+            **Instrucciones:**
+            - Edita la columna `nombre_unificado` para agrupar variables
+            - Variables con el mismo `nombre_unificado` se fusionarán
+            - Puedes descargar, editar en Excel y volver a subir
+            """)
+            
+            # Editor de datos
+            edited_df = st.data_editor(
+                st.session_state.mapping_df,
+                use_container_width=True,
+                num_rows="dynamic",
+                height=400,
+                column_config={
+                    "variable_original": st.column_config.TextColumn("Variable original", disabled=True),
+                    "label": st.column_config.TextColumn("Label", disabled=True),
+                    "datasets": st.column_config.TextColumn("Datasets", disabled=True),
+                    "nombre_unificado": st.column_config.TextColumn("Nombre unificado", required=True)
+                }
+            )
+            
+            # Guardar cambios
+            if st.button("💾 Guardar cambios", type="primary"):
+                st.session_state.mapping_df = edited_df
+                st.success("✅ Cambios guardados")
+                st.rerun()
+            
+            # Opciones de exportación/importación
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Descargar como CSV
+                csv = edited_df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 Descargar mapeo (CSV)",
+                    data=csv,
+                    file_name="variable_mapping.csv",
+                    mime="text/csv"
+                )
+            
+            with col2:
+                # Cargar CSV editado
+                uploaded_mapping = st.file_uploader(
+                    "📤 Cargar mapeo editado (CSV)",
+                    type=['csv'],
+                    key="mapping_upload"
+                )
+                
+                if uploaded_mapping:
+                    try:
+                        loaded_df = pd.read_csv(uploaded_mapping)
+                        st.session_state.mapping_df = loaded_df
+                        st.success("✅ Mapeo cargado correctamente")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al cargar: {str(e)}")
+        
+        with tab2:
+            st.subheader("Vista previa de agrupaciones")
+            
+            # Agrupar por nombre_unificado
+            grouped = edited_df.groupby('nombre_unificado')
+            
+            # Mostrar solo grupos con más de una variable
+            multi_var_groups = {name: group for name, group in grouped if len(group) > 1}
+            
+            if multi_var_groups:
+                st.info(f"Se fusionarán {len(multi_var_groups)} grupos de variables")
+                
+                for name, group in list(multi_var_groups.items())[:10]:  # Mostrar primeros 10
+                    with st.expander(f"📋 {name} ({len(group)} variables)"):
+                        st.dataframe(
+                            group[['variable_original', 'label', 'datasets']],
+                            use_container_width=True
+                        )
+                
+                if len(multi_var_groups) > 10:
+                    st.caption(f"... y {len(multi_var_groups) - 10} grupos más")
+            else:
+                st.warning("No hay variables agrupadas. Todas mantienen su nombre original.")
+        
+        # Botones de navegación
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("← Volver al paso anterior"):
+                st.session_state.current_step = 2
+                st.rerun()
+        
+        with col2:
+            if st.button("Continuar al siguiente paso →", type="primary"):
+                # Aplicar mapeo y unificar
+                with st.spinner("Aplicando mapeo y unificando datasets..."):
+                    try:
+                        unified_df = apply_variable_mapping(
+                            st.session_state.files_data,
+                            st.session_state.mapping_df
+                        )
+                        st.session_state.unified_df = unified_df
+                        st.session_state.current_step = 4
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al unificar: {str(e)}")
+
+# ============================================================================
+# PASO 4: DESCARGAR RESULTADO
+# ============================================================================
+
+elif st.session_state.current_step == 4:
+    st.title("Paso 4: Resultado y descarga")
+    st.markdown("Tu dataset unificado está listo")
     
-    with tab3:
-        st.subheader("Descargar archivo unificado")
+    if st.session_state.unified_df is None:
+        st.error("No hay dataset unificado. Vuelve al paso anterior.")
+        if st.button("← Volver al paso anterior"):
+            st.session_state.current_step = 3
+            st.rerun()
+    else:
+        df = st.session_state.unified_df
         
-        # Unificar datasets
-        with st.spinner("Unificando datasets..."):
-            unified_df = unify_datasets(files_data, add_source_column=add_source)
+        # Estadísticas
+        st.subheader("📊 Estadísticas del dataset unificado")
         
-        st.success(f"✅ Dataset unificado creado: {len(unified_df):,} filas × {len(unified_df.columns)} columnas")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total de filas", f"{len(df):,}")
+        col2.metric("Total de columnas", len(df.columns))
+        col3.metric("Archivos unidos", df['dataset_origen'].nunique())
         
         # Preview
-        with st.expander("👀 Ver preview del dataset unificado"):
-            st.dataframe(unified_df.head(20), use_container_width=True)
+        st.markdown("---")
+        st.subheader("👀 Preview del dataset")
         
-        # Opciones de descarga
-        st.markdown("### Formato de descarga")
+        with st.expander("Ver primeras filas", expanded=True):
+            st.dataframe(df.head(20), use_container_width=True)
+        
+        with st.expander("Ver distribución por archivo origen"):
+            dist = df['dataset_origen'].value_counts().reset_index()
+            dist.columns = ['Archivo', 'Número de registros']
+            st.dataframe(dist, use_container_width=True)
+        
+        # Descargas
+        st.markdown("---")
+        st.subheader("💾 Descargar resultado")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            # Descargar como SPSS
-            if st.button("📥 Preparar descarga SPSS (.sav)", type="primary"):
+            st.markdown("**Formato SPSS (.sav)**")
+            st.caption("Para seguir trabajando en SPSS")
+            
+            if st.button("📥 Preparar descarga SPSS", type="primary"):
                 with st.spinner("Generando archivo SPSS..."):
                     try:
-                        spss_file = export_to_spss(unified_df)
+                        spss_file = export_to_spss(df)
                         
                         st.download_button(
                             label="💾 Descargar archivo SPSS",
                             data=spss_file,
                             file_name="dataset_unificado.sav",
-                            mime="application/x-spss-sav"
+                            mime="application/x-spss-sav",
+                            use_container_width=True
                         )
-                        st.success("✅ Archivo SPSS listo para descargar")
+                        st.success("✅ Archivo SPSS listo")
                     except Exception as e:
-                        st.error(f"❌ Error al generar SPSS: {str(e)}")
+                        st.error(f"Error al generar SPSS: {str(e)}")
         
         with col2:
-            # Descargar como CSV
-            csv_data = unified_df.to_csv(index=False, encoding='utf-8-sig')
+            st.markdown("**Formato CSV**")
+            st.caption("Para Excel, R, Python, etc.")
+            
+            csv_data = df.to_csv(index=False, encoding='utf-8-sig')
             
             st.download_button(
                 label="📥 Descargar CSV",
                 data=csv_data,
                 file_name="dataset_unificado.csv",
-                mime="text/csv"
+                mime="text/csv",
+                use_container_width=True
             )
-
+        
+        # Metadata
+        st.markdown("---")
+        st.subheader("📋 Metadata del proceso")
+        
+        metadata = {
+            'archivos_procesados': [name for name, _, _ in st.session_state.files_data],
+            'transformaciones_multirespuesta': {
+                file: len(trans) 
+                for file, trans in st.session_state.multiresponse_transformations.items()
+            },
+            'estadisticas_mapeo': get_mapping_stats(st.session_state.mapping_df),
+            'estadisticas_finales': {
+                'total_filas': len(df),
+                'total_columnas': len(df.columns),
+                'archivos_unidos': int(df['dataset_origen'].nunique())
+            }
+        }
+        
+        st.json(metadata)
+        
+        # Descargar metadata
+        metadata_json = json.dumps(metadata, indent=2, ensure_ascii=False)
+        st.download_button(
+            label="📥 Descargar metadata (JSON)",
+            data=metadata_json,
+            file_name="metadata_proceso.json",
+            mime="application/json"
+        )
+        
+        # Botones de navegación
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("← Volver al paso anterior"):
+                st.session_state.current_step = 3
+                st.rerun()
+        
+        with col2:
+            if st.button("🔄 Iniciar nuevo proceso", type="primary"):
+                reset_from_step(1)
+                st.session_state.current_step = 1
+                st.rerun()
 
 # ============================================================================
-# EJECUTAR APLICACIÓN
+# FOOTER
 # ============================================================================
 
-if __name__ == "__main__":
-    main()
+st.markdown("---")
+st.caption("Survey File Unifier v1.0 | Desarrollado para análisis de encuestas longitudinales")
