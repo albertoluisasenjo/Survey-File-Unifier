@@ -1,0 +1,9 @@
+# Framework web
+streamlit>=1.28.0
+
+# Procesamiento de datos
+pandas>=2.0.0
+pyreadstat>=1.2.0
+
+# Utilidades
+python-dateutil>=2.8.0
