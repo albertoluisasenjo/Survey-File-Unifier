@@ -1255,9 +1255,9 @@ class DiscrepancyAnalyzer:
         unique_values = set()
         
         for val_list in series.values:
-            if val_list is not None and isinstance(val_list, list):
+            if pd.notna(val_list) and isinstance(val_list, list):  # ✅ CORRECTO
                 for item in val_list:
-                    if item is not None and item != '' and str(item).lower() != 'nan':
+                    if pd.notna(item) and str(item).strip() != '' and str(item).lower() != 'nan':
                         unique_values.add(str(item))
         
         return unique_values
@@ -1269,7 +1269,7 @@ class DiscrepancyAnalyzer:
         else:
             unique_values = set()
             for val in series.unique():
-                if val is not None and val != '':
+                if pd.notna(val) and str(val).strip() != '':  # ✅ CORRECTO
                     unique_values.add(str(val))
             return unique_values
     
