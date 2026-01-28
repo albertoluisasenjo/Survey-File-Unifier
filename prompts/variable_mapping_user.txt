@@ -7,7 +7,7 @@ INSTRUCCIONES
 - Verifica que ningún grupo contenga dos variables del mismo dataset.
 
 FORMATO DE SALIDA
-Devuelve únicamente un diccionario Python llamado VARIABLE_MAPPING con esta estructura:
+Devuelve únicamente un diccionario Python llamado VARIABLE_MAPPING con esta estructura, pero utilizando los grupos y valores que hayas creado:
 
 VARIABLE_MAPPING = {
 "Nombre descriptivo del grupo 1": {
