@@ -8,14 +8,7 @@ INSTRUCCIONES
 - Mapea siempre los valores de no respuesta a null.
 
 FORMATO DE SALIDA
-Devuelve únicamente un diccionario Python VALUE_MAPPING con esta estructura:
-
-VALUE_MAPPING = {
-    "Nombre de la variable": {
-        "valor_original": "valor_normalizado",
-        "No sabe": null
-    }
-}
+Devuelve únicamente un diccionario Python llamado VALUE_MAPPING con esta estructura, pero utilizando las variables y valores que hayas creado:
 
 DISCREPANCIAS
 {discrepancies}
