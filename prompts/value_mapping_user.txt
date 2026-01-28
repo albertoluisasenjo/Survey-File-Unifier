@@ -1,7 +1,21 @@
-Analiza las siguientes discrepancias y genera el VALUE_MAPPING para unificarlas.
+Analiza las siguientes discrepancias de valores y genera un VALUE_MAPPING
+para unificarlas según las reglas indicadas.
 
-DISCREPANCIAS A ANALIZAR:
+INSTRUCCIONES
+- Unifica solo valores que difieran tipográficamente.
+- No crees valores nuevos.
+- No interpretes ni reordenas escalas.
+- Mapea siempre los valores de no respuesta a null.
 
+FORMATO DE SALIDA
+Devuelve únicamente un diccionario Python VALUE_MAPPING con esta estructura:
+
+VALUE_MAPPING = {
+    "Nombre de la variable": {
+        "valor_original": "valor_normalizado",
+        "No sabe": null
+    }
+}
+
+DISCREPANCIAS
 {discrepancies}
-
-Unifica valores que difieren solo tipográficamente. RESPONDE ÚNICAMENTE CON EL CÓDIGO PYTHON DEL DICCIONARIO VALUE_MAPPING.
