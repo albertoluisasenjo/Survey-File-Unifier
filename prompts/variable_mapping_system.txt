@@ -14,6 +14,7 @@ RESTRICCIONES DURAS (OBLIGATORIAS)
 3. Preguntas referidas a entidades distintas (personas, partidos, territorios,
    instituciones concretas, etc.) nunca se agrupan, aunque tengan la misma estructura.
 4. Si un grupo viola alguna de estas reglas, el grupo es inválido y debe dividirse.
+5. Debes darle a tu respuesta el formato pedido, sin responder nada más.
 
 CRITERIOS DE EVIDENCIA
 - Texto claramente equivalente → evidencia media.
