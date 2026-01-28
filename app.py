@@ -2121,6 +2121,7 @@ VARIABLE_MAPPING = {
                                 variable_mapping,
                                 similarity_threshold=0.985
                             )
+                            # Diagnóstico antes de unificar
                             unifier = DatasetUnifier(
                                 st.session_state.importer,
                                 variable_mapping
@@ -2129,25 +2130,11 @@ VARIABLE_MAPPING = {
                             diagnosis = unifier.diagnose_variable_mapping()
                             
                             if diagnosis['total_issues'] > 0:
-                                st.warning(f"⚠️ Se detectaron {diagnosis['total_issues']} problemas.")
-                                
-                                with st.expander("🔍 Ver diagnóstico detallado", expanded=True):
+                                st.warning(f"⚠️ Se detectaron {diagnosis['total_issues']} problemas. La unificación continuará pero puede haber errores.")
+                                with st.expander("Ver diagnóstico"):
                                     st.json(diagnosis)
-                                
-                                st.error("⚠️ **ATENCIÓN**: Se encontraron problemas en el mapping. Revisa el diagnóstico antes de continuar.")
-                                
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    if st.button("⬅️ Volver a editar", type="secondary", use_container_width=True):
-                                        st.stop()  # Detiene la ejecución aquí
-                                
-                                with col2:
-                                    if st.button("➡️ Continuar de todas formas", type="primary", use_container_width=True):
-                                        pass  # Continúa con la unificación
-                                    else:
-                                        st.stop()  # Detiene hasta que presione el botón
                             
-                            # Unificar datasets (solo llega aquí si no hay problemas o si confirmó continuar)
+                            # Unificar datasets
                             unified_df = unifier.unify_datasets()
                             
                             st.session_state.unified_dataset = unified_df
