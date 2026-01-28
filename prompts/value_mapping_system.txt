@@ -45,7 +45,7 @@ VALUE_MAPPING = {
 
 EJEMPLO DE FORMATO:
 ```python
-{
+VALUE_MAPPING = {
   "17. \t ¿Y PODRÍA DECIRME EN QUÉ COMUNIDAD AUTÓNOMA NACIÓ SU PADRE?": {
     "Balears, Illes": "Illes Balears",
     "Castilla - La Mancha": "Castilla-La Mancha",
