@@ -1,10 +1,28 @@
-Analiza el siguiente inventario de variables y agrúpalas según las reglas establecidas.
+Analiza el siguiente inventario de variables y agrúpalas según los criterios indicados.
+
+INSTRUCCIONES
+- Analiza TODO el inventario sin omitir ninguna variable.
+- Agrupa únicamente variables que midan exactamente el mismo concepto.
+- No fuerces agrupaciones: si no hay certeza, deja la variable en un grupo propio.
+- Verifica que ningún grupo contenga dos variables del mismo dataset.
+
+FORMATO DE SALIDA
+Devuelve únicamente un diccionario Python llamado VARIABLE_MAPPING con esta estructura:
+
+VARIABLE_MAPPING = {
+    "Concepto unificado": {
+        "codigo_variable": ["nombre de dataset", "nombre de dataset"]
+    },
+    ...
+}
+
 
 VARIABLES COMUNES A BUSCAR:
 - Identificador único del encuestado
 - Peso o ponderación
 - Sexo
-- Edad (sin agrupar y agrupada por intervalos)
+- Edad (numérica)
+- Edad por intervalos (categórica)
 - Nivel de estudios
 - Situación laboral
 - Provincia
@@ -15,9 +33,10 @@ VARIABLES COMUNES A BUSCAR:
 - Autoubicación ideológica
 - Principal problema
 - Partido que mejor responde a problemas
+- Valoración de partido político (agrupar cada partido por separado)
+- Valoración de personaje político (agrupar cada personaje por separado)
 
-INVENTARIO A ANALIZAR:
-
+INVENTARIO DE VARIABLES
 {inventory}
 
 RESPONDE ÚNICAMENTE CON EL CÓDIGO PYTHON DEL DICCIONARIO VARIABLE_MAPPING.
