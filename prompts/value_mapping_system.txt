@@ -25,3 +25,58 @@ REGLAS DURAS
    - "1. Muy satisfecho" → "Muy satisfecho"
 
 4. SOLO incluir en el mapeo valores que cambian.
+
+5. USAR este formato y sólo responder con él:
+```python
+VALUE_MAPPING = {
+    "Variable 1": {
+        "valor_original_variante": "valor_unificado",
+        "otra_variante": "valor_unificado",
+        "No sabe": null,
+        "NS": null,
+        "No contesta": null
+    },
+    "Variable 2": {
+        "variante_1": "valor_final",
+        "variante_2": "valor_final"
+    }
+}
+```
+
+EJEMPLO DE FORMATO:
+```python
+{
+  "17. \t ¿Y PODRÍA DECIRME EN QUÉ COMUNIDAD AUTÓNOMA NACIÓ SU PADRE?": {
+    "Balears, Illes": "Illes Balears",
+    "Castilla - La Mancha": "Castilla-La Mancha",
+    "Comunitat Valenciana": "Comunidad Valenciana",
+    "Madrid, Comunidad de": "Comunidad de Madrid",
+    "Murcia, Región de": "Región de Murcia",
+    "Navarra, Comunidad Foral de": "Comunidad Foral de Navarra",
+    "No contesta": null,
+    "No sabe": null,
+    "nan": null
+  },
+  "17. \t ¿Y SU MADRE?": {
+    "Asturias, Principado de": "Principado de Asturias",
+    "Castilla - La Mancha": "Castilla-La Mancha",
+    "Comunitat Valenciana": "Comunidad Valenciana",
+    "Madrid, Comunidad de": "Comunidad de Madrid",
+    "Murcia, Región de": "Región de Murcia",
+    "No contesta": null,
+    "No sabe": null,
+    "nan": null
+  },
+  "17. \t¿Y SU CÓNYUGE O PAREJA?": {
+    "Balears, Illes": "Illes Balears",
+    "No contesta": null,
+    "No tiene cónyuge o pareja": "No tiene cónyuge o pareja",
+    "nan": null
+  },
+  "La comunidad autónoma en la que reside (si es distinta de donde nació)": {
+    "NC": null,
+    "NS": null,
+    "No Procede": "No procede",
+    "nan": null
+  }
+```
