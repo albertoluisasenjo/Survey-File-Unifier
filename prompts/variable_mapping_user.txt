@@ -9,29 +9,6 @@ INSTRUCCIONES
 FORMATO DE SALIDA
 Devuelve únicamente un diccionario Python llamado VARIABLE_MAPPING con esta estructura, pero utilizando los grupos y valores que hayas creado:
 
-VARIABLE_MAPPING = {
-"Nombre descriptivo del grupo 1": {
-    "COD_VAR1": ["Dataset_A", "Dataset_B"],
-    "VAR_1": ["Dataset_C"]
-    },
-"Nombre descriptivo del grupo 2": {
-    "P2": ["Dataset_A"],
-    "PREG2": ["Dataset_B", "Dataset_C"]
-    }
-}
-
-EJEMPLO CONCRETO:
-VARIABLE_MAPPING = {
-    "Sexo del encuestado": {
-        "C3": ["Barometro_Enero_2023", "Barometro_Marzo_2023"],
-        "PC3": ["Seguimiento_Abril_2024"]
-    },
-    "Edad": {
-        "C4": ["Barometro_Enero_2023"],
-        "EDAD": ["Seguimiento_Abril_2024"]
-    }
-}
-
 VARIABLES COMUNES A BUSCAR:
 - Identificador único del encuestado
 - Peso o ponderación
