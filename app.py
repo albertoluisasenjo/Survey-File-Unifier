@@ -767,7 +767,7 @@ class VariableMappingGenerator:
         self.variable_mapping = None
         self.raw_response = None
     
-    def generate_mapping(self, model: str = "gpt-4o-mini") -> str:
+    def generate_mapping(self, model: str = "gpt-5.2") -> str:
         """Genera mapping con OpenAI"""
         
         # Usar prompts desde archivos o defaults
@@ -1453,7 +1453,7 @@ class ValueMappingGenerator:
         self.value_mapping = None
         self.raw_response = None
     
-    def generate_mapping(self, model: str = "gpt-4o-mini") -> str:
+    def generate_mapping(self, model: str = "gpt-5.2") -> str:
         """Genera mapping con OpenAI"""
         
         # Usar prompts desde archivos o defaults
@@ -1946,7 +1946,7 @@ def main():
         Ejemplo: `"C3. Sexo"` y `"PC3. Sexo"` se unifican en `"¿Cuál es su sexo?"`
         
         **Funcionalidades:**
-        - 🤖 Generación automática con IA (GPT-4o-mini)
+        - 🤖 Generación automática con IA (gpt-5.2)
         - ✍️ Escritura manual del mapping
         - 🔍 Detección de variables multirespuesta
         - 🎯 Auto-mapping por similitud (≥98.5%)
@@ -1978,7 +1978,7 @@ def main():
                     st.metric("Datasets", len(st.session_state.importer.datasets))
                 
                 if st.button("🚀 Generar VARIABLE_MAPPING con IA", type="primary"):
-                    with st.spinner("Generando mapping con GPT-4o-mini... (esto puede tardar 30-60 segundos)"):
+                    with st.spinner("Generando mapping con gpt-5.2... (esto puede tardar 30-60 segundos)"):
                         try:
                             mapping_generator = VariableMappingGenerator(
                                 st.session_state.api_key,
@@ -2242,7 +2242,7 @@ VARIABLE_MAPPING = {
                         st.metric("Variables multirespuesta", multiresponse_count)
                     
                     if st.button("🚀 Generar VALUE_MAPPING con IA"):
-                        with st.spinner("Generando mapping con GPT-4o-mini..."):
+                        with st.spinner("Generando mapping con gpt-5.2..."):
                             try:
                                 value_generator = ValueMappingGenerator(
                                     st.session_state.api_key,
