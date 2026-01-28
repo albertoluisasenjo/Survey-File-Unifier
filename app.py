@@ -1960,11 +1960,12 @@ def main():
             else:
                 st.markdown("**Vista previa del inventario:**")
                 
-                # Generar resumen
+                # Usar el inventario ya generado en Paso 1
                 generator = VariableInventoryGenerator(
                     st.session_state.metadata_collection,
                     st.session_state.importer.multiresponse_transformations
                 )
+                generator.variable_inventory = st.session_state.variable_inventory
                 summary = generator.generate_summary_for_ai()
                 
                 col1, col2 = st.columns([2, 1])
