@@ -1,0 +1,7 @@
+Analiza las siguientes discrepancias y genera el VALUE_MAPPING para unificarlas.
+
+DISCREPANCIAS A ANALIZAR:
+
+{discrepancies}
+
+Unifica valores que difieren solo tipográficamente. RESPONDE ÚNICAMENTE CON EL CÓDIGO PYTHON DEL DICCIONARIO VALUE_MAPPING.
