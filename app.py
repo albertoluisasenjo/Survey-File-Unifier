@@ -45,7 +45,7 @@ if 'step' not in st.session_state:
     st.session_state.value_mapping = None
     st.session_state.value_mapping_edited = None
     st.session_state.final_dataset = None
-    st.session_state.api_key = ""
+    st.session_state.api_key = st.secrets.get("openai_key", "")
     st.session_state.nulls_report_pre = None
     st.session_state.nulls_report_post = None
 
@@ -1806,13 +1806,19 @@ def main():
         st.header("🔧 Configuración")
         
         # API Key
-        api_key = st.text_input(
-            "OpenAI API Key",
-            type="password",
-            value=st.session_state.api_key,
-            help="Necesaria para generar mappings automáticamente con IA"
-        )
-        st.session_state.api_key = api_key
+        try:
+            secret_key = st.secrets["openai_key"]
+            st.session_state.api_key = secret_key
+            st.success("✅ API Key cargada desde secrets")
+        except (KeyError, FileNotFoundError):
+            # Si no hay secret, permitir input manual
+            api_key = st.text_input(
+                "OpenAI API Key",
+                type="password",
+                value=st.session_state.api_key,
+                help="Necesaria para generar mappings automáticamente con IA"
+            )
+            st.session_state.api_key = api_key
         
         st.markdown("---")
         st.header("📍 Progreso")
