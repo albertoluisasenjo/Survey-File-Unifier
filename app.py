@@ -443,7 +443,7 @@ def transform_multiresponse_to_list(df: pd.DataFrame, group: List[str], meta) ->
     label_to_var = {}
     
     for var in group:
-        label = meta['column_names_to_labels'].get(var, var)
+        label = meta.column_names_to_labels.get(var, var)
         labels.append(label)
         label_to_var[label] = var
     
