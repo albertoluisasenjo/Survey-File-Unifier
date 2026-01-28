@@ -779,9 +779,7 @@ class VariableMappingGenerator:
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
-            ],
-            max_tokens=16000,
-            temperature=0.3
+            ]
         )
         
         self.raw_response = response.choices[0].message.content
@@ -1465,9 +1463,7 @@ class ValueMappingGenerator:
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
-            ],
-            max_tokens=16000,
-            temperature=0.3
+            ]
         )
         
         self.raw_response = response.choices[0].message.content
