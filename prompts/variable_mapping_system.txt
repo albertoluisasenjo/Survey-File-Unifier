@@ -31,12 +31,12 @@ REGLAS FUNDAMENTALES:
 5. FORMATO DE SALIDA:
 VARIABLE_MAPPING = {
     "ID": {
-        "ID": ["(nombre de dataset)", "(nombre de dataset)"],
-        "CUEST_ID": ["(nombre de dataset)"]
+        "ID": ["nombre de dataset", "nombre de dataset"],
+        "CUEST_ID": ["nombre de dataset"]
     },
     
     "Valoración Juanma Moreno": {
-        "P2002_VAL_1": ["(nombre de dataset)", "(nombre de dataset)"]
+        "P2002_VAL_1": ["nombre de dataset", "nombre de dataset"]
     }
 }
 
