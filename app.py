@@ -1974,7 +1974,7 @@ def main():
                     st.metric("Datasets", len(st.session_state.importer.datasets))
                 
                 if st.button("🚀 Generar VARIABLE_MAPPING con IA", type="primary"):
-                    with st.spinner("Generando mapping con gpt-5.2... (esto puede tardar 30-60 segundos)"):
+                    with st.spinner("Generando mapping con gpt-5.2... (esto puede tardar entre 1 y 5 minutos...)"):
                         try:
                             mapping_generator = VariableMappingGenerator(
                                 st.session_state.api_key,
@@ -2194,7 +2194,7 @@ VARIABLE_MAPPING = {
                 st.warning("⚠️ Por favor, ingresa tu OpenAI API Key en el sidebar")
             else:
                 if st.button("🔍 Analizar discrepancias", type="primary"):
-                    with st.spinner("Analizando discrepancias en valores..."):
+                    with st.spinner("Analizando discrepancias en valores (esto puede tardar entre 1 y 5 minutos...)"):
                         # Analizar discrepancias
                         analyzer = DiscrepancyAnalyzer(
                             st.session_state.unified_dataset,
