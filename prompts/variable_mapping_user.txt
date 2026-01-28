@@ -1,0 +1,23 @@
+Analiza el siguiente inventario de variables y agrúpalas según las reglas establecidas.
+
+VARIABLES COMUNES A BUSCAR:
+- Identificador único del encuestado
+- Peso o ponderación
+- Sexo
+- Edad (sin agrupar y agrupada por intervalos)
+- Nivel de estudios
+- Situación laboral
+- Provincia
+- Nacionalidad / lugar de nacimiento
+- Tamaño de la localidad
+- Intención de voto
+- Recuerdo de voto
+- Autoubicación ideológica
+- Principal problema
+- Partido que mejor responde a problemas
+
+INVENTARIO A ANALIZAR:
+
+{inventory}
+
+RESPONDE ÚNICAMENTE CON EL CÓDIGO PYTHON DEL DICCIONARIO VARIABLE_MAPPING.
