@@ -441,21 +441,31 @@ def transform_multiresponse_to_list(df: pd.DataFrame, group: List[str], meta) ->
     # Obtener labels de cada variable del grupo
     labels = []
     label_to_var = {}
-    
+    normalized_to_original = {}
     for var in group:
         label = meta.column_names_to_labels.get(var, var)
         labels.append(label)
         label_to_var[label] = var
-    
+        normalized_label = ' '.join(label.split())
+        normalized_to_original[normalized_label] = label   
     # Extraer partes diferenciales
     differential_parts = extract_differential_part(labels)
     
     # Crear mapeo: variable → valor diferencial
     var_to_differential = {}
-    for label, diff in differential_parts.items():
-        var = label_to_var[label]
-        cleaned_diff = clean_differential_value(diff)
-        var_to_differential[var] = cleaned_diff
+    for normalized_label, diff in differential_parts.items():  # ✅ CAMBIADO: reconocer que son labels normalizados
+        # ✅ NUEVO: Obtener el label original correspondiente
+        original_label = normalized_to_original.get(normalized_label, normalized_label)
+        # ✅ NUEVO: Buscar la variable correspondiente
+        var = label_to_var.get(original_label)
+        if var is None:
+            # Fallback: intentar buscar directamente
+            var = label_to_var.get(normalized_label)
+        
+        # ✅ NUEVO: Solo procesar si encontramos la variable
+        if var is not None:
+            cleaned_diff = clean_differential_value(diff)
+            var_to_differential[var] = cleaned_diff
     
     # Crear nueva columna tipo lista
     def create_list_for_row(row):
